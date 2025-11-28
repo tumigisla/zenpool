@@ -508,7 +508,7 @@ function App() {
                 max="100"
                 value={audioState.volume}
                 onChange={(e) => setVolume(Number(e.target.value))}
-                className="w-16"
+                className="w-24 h-2 cursor-pointer"
               />
               <span className="text-[10px] text-white/30 w-6 font-mono">
                 {audioState.volume}

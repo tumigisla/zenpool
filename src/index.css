@@ -152,33 +152,56 @@ button:focus-visible {
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  cursor: pointer;
 }
 
 input[type="range"]::-webkit-slider-runnable-track {
-  height: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  cursor: pointer;
 }
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.9);
   margin-top: -5px;
   cursor: pointer;
-  transition: transform 0.1s ease;
+  transition: transform 0.1s ease, background 0.1s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
+  transform: scale(1.15);
   background: white;
 }
 
 input[type="range"]::-webkit-slider-thumb:active {
   transform: scale(0.95);
+  background: #f59e0b;
+}
+
+/* Firefox */
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* Selection */
