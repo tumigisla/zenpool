@@ -27,6 +27,7 @@ interface ParticleVisualizerProps {
   stressLevel: number;
   isBlockEvent: boolean;
   onBlockEventComplete?: () => void;
+  highlightedTxId?: string | null;
 }
 
 // Fee rate to color mapping
@@ -57,6 +58,7 @@ export function ParticleVisualizer({
   transactions, 
   stressLevel, 
   isBlockEvent,
+  highlightedTxId,
 }: ParticleVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>([]);
@@ -64,6 +66,8 @@ export function ParticleVisualizer({
   const animationRef = useRef<number>(0);
   const blockEventRef = useRef(false);
   const blockAnimationProgress = useRef(0);
+  const highlightedTxIdRef = useRef<string | null>(null);
+  const highlightAnimationRef = useRef(0);
 
   // Container dimensions (relative to canvas)
   const containerRef = useRef({
@@ -137,6 +141,16 @@ export function ParticleVisualizer({
       blockAnimationProgress.current = 0;
     }
   }, [isBlockEvent]);
+
+  // Handle highlighted transaction
+  useEffect(() => {
+    if (highlightedTxId) {
+      highlightedTxIdRef.current = highlightedTxId;
+      highlightAnimationRef.current = 0;
+    } else {
+      highlightedTxIdRef.current = null;
+    }
+  }, [highlightedTxId]);
 
   // Main animation loop
   useEffect(() => {
@@ -267,6 +281,36 @@ export function ParticleVisualizer({
       // Draw particles
       for (const p of particles) {
         if (p.alpha <= 0) continue;
+
+        // Check if this particle is highlighted
+        const isHighlighted = highlightedTxIdRef.current === p.id;
+        
+        if (isHighlighted) {
+          // Update highlight animation
+          highlightAnimationRef.current += 0.08;
+          const pulse = Math.sin(highlightAnimationRef.current) * 0.3 + 0.7;
+          const ringExpand = Math.min(highlightAnimationRef.current * 0.5, 2);
+          
+          // Draw expanding ring
+          const ringRadius = p.size * (2 + ringExpand);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, ringRadius, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(255, 255, 255, ${pulse * 0.4})`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          
+          // Draw outer glow
+          const glowGradient = ctx.createRadialGradient(
+            p.x, p.y, p.size,
+            p.x, p.y, ringRadius * 1.5
+          );
+          glowGradient.addColorStop(0, `rgba(255, 255, 255, ${pulse * 0.15})`);
+          glowGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+          ctx.fillStyle = glowGradient;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, ringRadius * 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
