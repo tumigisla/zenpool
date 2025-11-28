@@ -18,7 +18,6 @@ function App() {
     state: audioState,
     initialize: initializeAudio,
     start: startAudio,
-    stop: stopAudio,
     setVolume,
     setStressLevel,
     triggerTransactionSound,
@@ -85,15 +84,6 @@ function App() {
     }
     setIsEntering(false);
   }, [initializeAudio, startAudio, setVolume]);
-
-  // Toggle play/pause
-  const handleTogglePlay = useCallback(() => {
-    if (audioState.isPlaying) {
-      stopAudio();
-    } else {
-      startAudio();
-    }
-  }, [audioState.isPlaying, startAudio, stopAudio]);
 
   const getStressBgColor = (level: number): string => {
     if (level < 0.3) return 'bg-emerald-400';
@@ -214,7 +204,6 @@ function App() {
             }}
           />
 
-
           {/* Block event overlay */}
           {isBlockEvent && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-amber-400/5">
@@ -239,37 +228,6 @@ function App() {
 
           <div className="absolute top-3 right-3 text-[10px] text-white/30 font-mono">
             #{networkState.currentBlockHeight.toLocaleString()}
-          </div>
-        </div>
-      </div>
-
-      {/* Controls Bar - Bottom */}
-      <div className="controls-bar absolute bottom-0 left-0 right-0 p-4 z-[60]">
-        <div className="max-w-3xl mx-auto flex items-center justify-center">
-          {/* Playback */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleTogglePlay}
-              className="w-10 h-10 rounded-full bg-white/5 border border-white/10 
-                         hover:border-white/20 hover:bg-white/10
-                         flex items-center justify-center transition-all duration-300"
-              title={audioState.isPlaying ? 'Pause' : 'Play'}
-            >
-              {audioState.isPlaying ? (
-                <svg className="w-4 h-4 text-white/60" fill="currentColor" viewBox="0 0 24 24">
-                  <rect x="6" y="4" width="4" height="16" rx="1" />
-                  <rect x="14" y="4" width="4" height="16" rx="1" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4 text-white/60 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              )}
-            </button>
-            
-            <div className={`w-1.5 h-1.5 rounded-full transition-colors ${
-              audioState.isPlaying ? 'bg-emerald-400 animate-pulse' : 'bg-white/20'
-            }`} />
           </div>
         </div>
       </div>
