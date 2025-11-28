@@ -52,8 +52,13 @@ const getParticleSize = (value: number): number => {
 
 const MAX_PARTICLES = 300;
 const GRAVITY = 0.15;
-const CONTAINER_PADDING = 40;
 const MAX_FILL_RATIO = 0.85; // Maximum fill percentage before removing old particles
+
+// Responsive padding based on screen size
+const getContainerPadding = () => {
+  if (typeof window === 'undefined') return 40;
+  return window.innerWidth < 640 ? 20 : 40;
+};
 
 export function ParticleVisualizer({ 
   transactions, 
@@ -168,8 +173,8 @@ export function ParticleVisualizer({
       canvas.height = rect.height * window.devicePixelRatio;
       ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
 
-      // Update container dimensions
-      const padding = CONTAINER_PADDING;
+      // Update container dimensions with responsive padding
+      const padding = getContainerPadding();
       containerRef.current = {
         x: padding,
         y: padding,
