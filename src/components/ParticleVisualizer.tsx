@@ -338,18 +338,6 @@ export function ParticleVisualizer({
         ctx.fill();
       }
 
-      // Draw stress indicator at top
-      const stressWidth = container.width * stressLevel;
-      const stressGradient = ctx.createLinearGradient(
-        container.x, 0,
-        container.x + container.width, 0
-      );
-      stressGradient.addColorStop(0, 'rgba(52, 211, 153, 0.3)');
-      stressGradient.addColorStop(0.5, 'rgba(251, 191, 36, 0.3)');
-      stressGradient.addColorStop(1, 'rgba(239, 68, 68, 0.3)');
-      ctx.fillStyle = stressGradient;
-      ctx.fillRect(container.x, container.y, stressWidth, 2);
-
       animationRef.current = requestAnimationFrame(animate);
     };
 
