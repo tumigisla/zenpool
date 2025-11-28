@@ -1,4 +1,12 @@
 repos:
+  # Secret detection - prevents accidentally committing passwords, API keys, tokens
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: package-lock.json
+
   - repo: local
     hooks:
       - id: typecheck
