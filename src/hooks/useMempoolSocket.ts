@@ -132,7 +132,7 @@ export function useMempoolSocket(): MempoolSocketReturn {
         processTransaction(tx);
       });
 
-    } catch (error) {
+    } catch {
       // Silently fail - we'll try again next interval
     }
   }, [processTransaction]);
