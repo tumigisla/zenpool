@@ -72,13 +72,6 @@ function App() {
     }
   }, [networkState.stressLevel, audioState.isPlaying, setStressLevel]);
 
-  // Sync local volume with audio state on init
-  useEffect(() => {
-    if (audioState.isInitialized) {
-      setLocalVolume(audioState.volume);
-    }
-  }, [audioState.isInitialized, audioState.volume]);
-
   // Track block count ref to avoid setState in effect
   const blockCountRef = useRef(0);
   
