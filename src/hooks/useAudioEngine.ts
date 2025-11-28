@@ -1,23 +1,23 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AudioEngine, getAudioEngine } from '../audio/AudioEngine';
 import type { AudioEngineState } from '../audio/AudioEngine';
-import type { MelodyEvent } from '../audio/MelodyEngine';
+import type { TransactionSoundEvent } from '../audio/TransactionSoundEngine';
 
 export interface UseAudioEngineReturn {
   state: AudioEngineState;
-  recentMelodies: MelodyEvent[];
+  recentSounds: TransactionSoundEvent[];
   initialize: () => Promise<void>;
   start: () => void;
   stop: () => void;
   toggleMute: () => void;
   toggleDrone: () => void;
-  toggleMelody: () => void;
-  toggleGong: () => void;
+  toggleTransactionSounds: () => void;
+  toggleBowl: () => void;
   setVolume: (volume: number) => void;
   setStressLevel: (level: number) => void;
-  triggerMelody: (txid: string, value: number) => MelodyEvent | null;
+  triggerTransactionSound: (txid: string, value: number) => TransactionSoundEvent | null;
   triggerBlockEvent: () => void;
-  testGong: () => void;
+  testBowl: () => void;
 }
 
 export function useAudioEngine(): UseAudioEngineReturn {
@@ -28,10 +28,10 @@ export function useAudioEngine(): UseAudioEngineReturn {
     isMuted: false,
     volume: 70,
     droneEnabled: true,
-    melodyEnabled: true,
-    gongEnabled: true,
+    transactionSoundsEnabled: true,
+    bowlEnabled: true,
   });
-  const [recentMelodies, setRecentMelodies] = useState<MelodyEvent[]>([]);
+  const [recentSounds, setRecentSounds] = useState<TransactionSoundEvent[]>([]);
 
   // Get or create the engine instance
   useEffect(() => {
@@ -46,7 +46,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
   const updateState = useCallback(() => {
     if (engineRef.current) {
       setState(engineRef.current.getState());
-      setRecentMelodies(engineRef.current.getRecentMelodies());
+      setRecentSounds(engineRef.current.getRecentSounds());
     }
   }, []);
 
@@ -85,24 +85,24 @@ export function useAudioEngine(): UseAudioEngineReturn {
     updateState();
   }, [updateState]);
 
-  const toggleMelody = useCallback(() => {
+  const toggleTransactionSounds = useCallback(() => {
     if (!engineRef.current) return;
     
-    engineRef.current.toggleMelody();
+    engineRef.current.toggleTransactionSounds();
     updateState();
   }, [updateState]);
 
-  const toggleGong = useCallback(() => {
+  const toggleBowl = useCallback(() => {
     if (!engineRef.current) return;
     
-    engineRef.current.toggleGong();
+    engineRef.current.toggleBowl();
     updateState();
   }, [updateState]);
 
-  const testGong = useCallback(() => {
+  const testBowl = useCallback(() => {
     if (!engineRef.current) return;
     
-    engineRef.current.testGong();
+    engineRef.current.testBowl();
   }, []);
 
   const setVolume = useCallback((volume: number) => {
@@ -118,12 +118,12 @@ export function useAudioEngine(): UseAudioEngineReturn {
     engineRef.current.setStressLevel(level);
   }, []);
 
-  const triggerMelody = useCallback((txid: string, value: number): MelodyEvent | null => {
+  const triggerTransactionSound = useCallback((txid: string, value: number): TransactionSoundEvent | null => {
     if (!engineRef.current) return null;
     
-    const event = engineRef.current.triggerMelody(txid, value);
+    const event = engineRef.current.triggerTransactionSound(txid, value);
     if (event) {
-      updateState(); // Update to get new melody in recentMelodies
+      updateState(); // Update to get new sound in recentSounds
     }
     return event;
   }, [updateState]);
@@ -136,18 +136,18 @@ export function useAudioEngine(): UseAudioEngineReturn {
 
   return {
     state,
-    recentMelodies,
+    recentSounds,
     initialize,
     start,
     stop,
     toggleMute,
     toggleDrone,
-    toggleMelody,
-    toggleGong,
+    toggleTransactionSounds,
+    toggleBowl,
     setVolume,
     setStressLevel,
-    triggerMelody,
+    triggerTransactionSound,
     triggerBlockEvent,
-    testGong,
+    testBowl,
   };
 }

@@ -8,9 +8,10 @@ import type {
 } from '../types/mempool';
 
 const MEMPOOL_WS_URL = 'wss://mempool.space/api/v1/ws';
-const FLOW_CALCULATION_INTERVAL = 100; // ms
+const MEMPOOL_API_URL = 'https://mempool.space/api';
+const POLL_INTERVAL = 1000; // Poll for new transactions every second
 const BUFFER_WINDOW = 5000; // 5 seconds of transactions
-const MAX_BUFFER_SIZE = 1000;
+const MAX_BUFFER_SIZE = 2000;
 
 // Normalize flow rate to stress level (0-1)
 // Based on typical Bitcoin network: ~3-7 tx/sec normal, 20+ during spikes
@@ -29,12 +30,16 @@ export interface MempoolSocketReturn {
   lastBlock: BlockData | null;
   isBlockEvent: boolean;
   clearBlockEvent: () => void;
+  // New: callback to get ALL new transactions as they arrive
+  onTransaction: (callback: (tx: Transaction) => void) => () => void;
 }
 
 export function useMempoolSocket(): MempoolSocketReturn {
   const wsRef = useRef<WebSocket | null>(null);
   const bufferRef = useRef<Transaction[]>([]);
-  const flowIntervalRef = useRef<number | null>(null);
+  const seenTxidsRef = useRef<Set<string>>(new Set());
+  const transactionCallbacksRef = useRef<Set<(tx: Transaction) => void>>(new Set());
+  const pollIntervalRef = useRef<number | null>(null);
   
   const [networkState, setNetworkState] = useState<NetworkState>({
     isConnected: false,
@@ -52,6 +57,85 @@ export function useMempoolSocket(): MempoolSocketReturn {
   const clearBlockEvent = useCallback(() => {
     setIsBlockEvent(false);
   }, []);
+
+  // Register a callback to receive all new transactions
+  const onTransaction = useCallback((callback: (tx: Transaction) => void) => {
+    transactionCallbacksRef.current.add(callback);
+    return () => {
+      transactionCallbacksRef.current.delete(callback);
+    };
+  }, []);
+
+  // Emit transaction to all registered callbacks
+  const emitTransaction = useCallback((tx: Transaction) => {
+    transactionCallbacksRef.current.forEach(callback => {
+      try {
+        callback(tx);
+      } catch (e) {
+        console.error('Transaction callback error:', e);
+      }
+    });
+  }, []);
+
+  // Process incoming transaction (deduped)
+  const processTransaction = useCallback((tx: {
+    txid: string;
+    fee: number;
+    vsize: number;
+    value: number;
+  }) => {
+    // Skip if we've already seen this transaction
+    if (seenTxidsRef.current.has(tx.txid)) return;
+    seenTxidsRef.current.add(tx.txid);
+
+    // Keep seen set manageable
+    if (seenTxidsRef.current.size > 10000) {
+      const txids = Array.from(seenTxidsRef.current);
+      seenTxidsRef.current = new Set(txids.slice(-5000));
+    }
+
+    const transaction: Transaction = {
+      txid: tx.txid,
+      value: tx.value,
+      vsize: tx.vsize,
+      fee: tx.fee,
+      feeRate: tx.fee / tx.vsize,
+      timestamp: Date.now(),
+    };
+    
+    bufferRef.current.push(transaction);
+    
+    // Limit buffer size
+    if (bufferRef.current.length > MAX_BUFFER_SIZE) {
+      bufferRef.current = bufferRef.current.slice(-MAX_BUFFER_SIZE);
+    }
+
+    // Emit to callbacks
+    emitTransaction(transaction);
+  }, [emitTransaction]);
+
+  // Poll mempool for recent transactions
+  const pollRecentTransactions = useCallback(async () => {
+    try {
+      const response = await fetch(`${MEMPOOL_API_URL}/mempool/recent`);
+      if (!response.ok) return;
+      
+      const transactions: Array<{
+        txid: string;
+        fee: number;
+        vsize: number;
+        value: number;
+      }> = await response.json();
+
+      // Process each transaction (processTransaction handles deduplication)
+      transactions.forEach(tx => {
+        processTransaction(tx);
+      });
+
+    } catch (error) {
+      // Silently fail - we'll try again next interval
+    }
+  }, [processTransaction]);
 
   // Calculate flow rate from buffer
   const calculateFlowRate = useCallback(() => {
@@ -74,39 +158,14 @@ export function useMempoolSocket(): MempoolSocketReturn {
       stressLevel,
     }));
     
-    // Update recent transactions for display (last 5)
-    setRecentTransactions(recentTxs.slice(-5));
-  }, []);
-
-  // Process incoming transaction
-  const processTransaction = useCallback((tx: {
-    txid: string;
-    fee: number;
-    vsize: number;
-    value: number;
-  }) => {
-    const transaction: Transaction = {
-      txid: tx.txid,
-      value: tx.value,
-      vsize: tx.vsize,
-      fee: tx.fee,
-      feeRate: tx.fee / tx.vsize,
-      timestamp: Date.now(),
-    };
-    
-    bufferRef.current.push(transaction);
-    
-    // Limit buffer size
-    if (bufferRef.current.length > MAX_BUFFER_SIZE) {
-      bufferRef.current = bufferRef.current.slice(-MAX_BUFFER_SIZE);
-    }
+    // Update recent transactions for display (last 10)
+    setRecentTransactions(recentTxs.slice(-10));
   }, []);
 
   // Process mempool blocks to extract transaction data
   const processMempoolBlocks = useCallback((blocks: MempoolBlock[]) => {
     if (blocks.length > 0) {
       const firstBlock = blocks[0];
-      // Use mempool block data to update network state
       setNetworkState(prev => ({
         ...prev,
         medianFeeRate: firstBlock.medianFee,
@@ -115,10 +174,16 @@ export function useMempoolSocket(): MempoolSocketReturn {
   }, []);
 
   useEffect(() => {
-    // Start flow calculation interval
-    flowIntervalRef.current = window.setInterval(calculateFlowRate, FLOW_CALCULATION_INTERVAL);
+    // Start polling for recent transactions
+    pollIntervalRef.current = window.setInterval(pollRecentTransactions, POLL_INTERVAL);
+    
+    // Initial poll
+    pollRecentTransactions();
 
-    // Connect to WebSocket
+    // Also calculate flow rate periodically
+    const flowInterval = window.setInterval(calculateFlowRate, 500);
+
+    // Connect to WebSocket for blocks and stats
     const connect = () => {
       const ws = new WebSocket(MEMPOOL_WS_URL);
       wsRef.current = ws;
@@ -127,7 +192,7 @@ export function useMempoolSocket(): MempoolSocketReturn {
         console.log('🔗 Connected to mempool.space');
         setNetworkState(prev => ({ ...prev, isConnected: true }));
         
-        // Subscribe to channels
+        // Subscribe to channels (blocks, stats, mempool info)
         ws.send(JSON.stringify({
           action: 'init',
         }));
@@ -135,12 +200,6 @@ export function useMempoolSocket(): MempoolSocketReturn {
         ws.send(JSON.stringify({
           action: 'want',
           data: ['blocks', 'stats', 'mempool-blocks'],
-        }));
-
-        // Track a popular address to get transaction flow
-        // This is the Binance cold wallet - always has activity
-        ws.send(JSON.stringify({
-          'track-address': 'bc1qm34lsc65zpw79lxes69zkqmk6ee3ewf0j77s3h',
         }));
       };
 
@@ -184,7 +243,7 @@ export function useMempoolSocket(): MempoolSocketReturn {
             }));
           }
           
-          // Handle vBytes per second from API
+          // Handle vBytes per second from API (more accurate than our calculation)
           if (data.vBytesPerSecond !== undefined) {
             const stressLevel = normalizeFlowRate(data.vBytesPerSecond);
             setNetworkState(prev => ({
@@ -199,17 +258,9 @@ export function useMempoolSocket(): MempoolSocketReturn {
             processMempoolBlocks(data['mempool-blocks']);
           }
           
-          // Handle transactions (from address tracking)
+          // Handle any transactions that come through WebSocket too
           if (data.transactions) {
             data.transactions.forEach(processTransaction);
-          }
-          
-          // Some messages come with address-transactions format
-          const addressTx = (data as Record<string, unknown>)['address-transactions'];
-          if (Array.isArray(addressTx)) {
-            addressTx.forEach((tx: { txid: string; fee: number; vsize: number; value: number }) => {
-              processTransaction(tx);
-            });
           }
           
         } catch (err) {
@@ -234,14 +285,15 @@ export function useMempoolSocket(): MempoolSocketReturn {
 
     // Cleanup
     return () => {
-      if (flowIntervalRef.current) {
-        clearInterval(flowIntervalRef.current);
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
       }
+      clearInterval(flowInterval);
       if (wsRef.current) {
         wsRef.current.close();
       }
     };
-  }, [calculateFlowRate, processTransaction, processMempoolBlocks]);
+  }, [calculateFlowRate, processTransaction, processMempoolBlocks, pollRecentTransactions]);
 
   return {
     networkState,
@@ -249,6 +301,6 @@ export function useMempoolSocket(): MempoolSocketReturn {
     lastBlock,
     isBlockEvent,
     clearBlockEvent,
+    onTransaction,
   };
 }
-

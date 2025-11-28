@@ -1,17 +1,17 @@
 import * as Tone from 'tone';
 import { DroneEngine } from './DroneEngine';
-import { MelodyEngine } from './MelodyEngine';
-import { GongEngine } from './GongEngine';
-import type { MelodyEvent } from './MelodyEngine';
+import { TransactionSoundEngine } from './TransactionSoundEngine';
+import type { TransactionSoundEvent } from './TransactionSoundEngine';
+import { SingingBowlEngine } from './SingingBowlEngine';
 
 /**
  * AudioEngine - Main controller for all audio in ZenPool
  * 
  * Manages:
  * - Browser AudioContext initialization (requires user gesture)
- * - Drone engine (continuous ambient pad)
- * - Melody engine (hash-derived arpeggios)
- * - Gong engine (block mined celebration)
+ * - Drone engine (continuous ambient synth waves)
+ * - Transaction sounds (every tx creates a scaled sound with entropy)
+ * - Singing bowl (Tibetan bowl for block mined celebration)
  */
 
 export interface AudioEngineState {
@@ -20,25 +20,25 @@ export interface AudioEngineState {
   isMuted: boolean;
   volume: number; // 0-100
   droneEnabled: boolean;
-  melodyEnabled: boolean;
-  gongEnabled: boolean;
+  transactionSoundsEnabled: boolean;
+  bowlEnabled: boolean;
 }
 
 export class AudioEngine {
   private drone: DroneEngine;
-  private melody: MelodyEngine;
-  private gong: GongEngine;
+  private transactionSounds: TransactionSoundEngine;
+  private bowl: SingingBowlEngine;
   private _isInitialized = false;
   private _isMuted = false;
   private _volume = 70; // 0-100
   private _droneEnabled = true;
-  private _melodyEnabled = true;
-  private _gongEnabled = true;
+  private _transactionSoundsEnabled = true;
+  private _bowlEnabled = true;
 
   constructor() {
     this.drone = new DroneEngine();
-    this.melody = new MelodyEngine();
-    this.gong = new GongEngine();
+    this.transactionSounds = new TransactionSoundEngine();
+    this.bowl = new SingingBowlEngine();
   }
 
   /**
@@ -56,8 +56,8 @@ export class AudioEngine {
       // Initialize sub-engines in parallel
       await Promise.all([
         this.drone.initialize(),
-        this.melody.initialize(),
-        this.gong.initialize(),
+        this.transactionSounds.initialize(),
+        this.bowl.initialize(),
       ]);
 
       this._isInitialized = true;
@@ -96,47 +96,57 @@ export class AudioEngine {
    */
   setStressLevel(stressLevel: number): void {
     this.drone.setStressLevel(stressLevel);
-    this.melody.setStressLevel(stressLevel);
+    this.transactionSounds.setStressLevel(stressLevel);
   }
 
   /**
-   * Trigger a melody from a transaction
-   * Returns the melody event if triggered, null if skipped (cooldown/threshold)
+   * Trigger a sound for a transaction
+   * Now handles ALL transactions (not just whales)
+   * Returns the sound event if triggered, null if skipped (cooldown/dust)
    */
-  triggerMelody(txid: string, value: number): MelodyEvent | null {
-    if (!this._isInitialized || !this._melodyEnabled) return null;
-    return this.melody.triggerMelody(txid, value);
+  triggerTransactionSound(txid: string, value: number): TransactionSoundEvent | null {
+    if (!this._isInitialized || !this._transactionSoundsEnabled) return null;
+    return this.transactionSounds.triggerSound(txid, value);
   }
 
   /**
    * Trigger the "block mined" audio event
-   * - Strikes the gong
+   * - Strikes the singing bowl
    * - Applies filter sweep to drone
-   * - Suppresses melodies temporarily
+   * - Suppresses transaction sounds temporarily
    */
   async triggerBlockEvent(): Promise<void> {
     if (!this._isInitialized) return;
 
-    console.log('🔔 Block event triggered - striking gong!');
+    console.log('🔔 Block event triggered - striking singing bowl!');
 
-    // Strike the gong!
-    if (this._gongEnabled) {
-      this.gong.strike();
+    // Strike the singing bowl!
+    if (this._bowlEnabled) {
+      this.bowl.strike();
     }
 
-    // Suppress melodies during the gong moment
-    this.melody.suppress(4000);
+    // Suppress transaction sounds during the bowl moment
+    this.transactionSounds.suppress(4000);
 
     // Apply underwater filter sweep to drone (creates relief feeling)
     this.drone.applyFilterSweep(6);
   }
 
   /**
-   * Test the gong sound (for debugging)
+   * Test the singing bowl sound
    */
-  testGong(): void {
-    if (this._isInitialized && this._gongEnabled) {
-      this.gong.strike();
+  testBowl(): void {
+    if (this._isInitialized && this._bowlEnabled) {
+      this.bowl.strike();
+    }
+  }
+
+  /**
+   * Gentle bowl strike
+   */
+  testBowlGentle(): void {
+    if (this._isInitialized && this._bowlEnabled) {
+      this.bowl.strikeGentle();
     }
   }
 
@@ -156,10 +166,10 @@ export class AudioEngine {
     const dbOffset = normalizedVolume === 0 ? -60 : -60 * (1 - normalizedVolume);
     
     // Apply volume offset to each engine's base volume
-    // Drone base: -24dB, Melody base: -12dB, Gong base: -6dB
+    // Drone base: -24dB, Transaction sounds base: -12dB, Bowl base: -6dB
     this.drone.setVolume(-24 + dbOffset);
-    this.melody.setVolume(-12 + dbOffset);
-    this.gong.setVolume(-6 + dbOffset);
+    this.transactionSounds.setVolume(-12 + dbOffset);
+    this.bowl.setVolume(-6 + dbOffset);
   }
 
   /**
@@ -199,38 +209,38 @@ export class AudioEngine {
   }
 
   /**
-   * Toggle melody on/off
+   * Toggle transaction sounds on/off
    */
-  toggleMelody(): boolean {
-    this._melodyEnabled = !this._melodyEnabled;
-    this.melody.setEnabled(this._melodyEnabled);
-    return this._melodyEnabled;
+  toggleTransactionSounds(): boolean {
+    this._transactionSoundsEnabled = !this._transactionSoundsEnabled;
+    this.transactionSounds.setEnabled(this._transactionSoundsEnabled);
+    return this._transactionSoundsEnabled;
   }
 
-  setMelodyEnabled(enabled: boolean): void {
-    this._melodyEnabled = enabled;
-    this.melody.setEnabled(enabled);
+  setTransactionSoundsEnabled(enabled: boolean): void {
+    this._transactionSoundsEnabled = enabled;
+    this.transactionSounds.setEnabled(enabled);
   }
 
   /**
-   * Toggle gong on/off
+   * Toggle bowl on/off
    */
-  toggleGong(): boolean {
-    this._gongEnabled = !this._gongEnabled;
-    this.gong.setEnabled(this._gongEnabled);
-    return this._gongEnabled;
+  toggleBowl(): boolean {
+    this._bowlEnabled = !this._bowlEnabled;
+    this.bowl.setEnabled(this._bowlEnabled);
+    return this._bowlEnabled;
   }
 
-  setGongEnabled(enabled: boolean): void {
-    this._gongEnabled = enabled;
-    this.gong.setEnabled(enabled);
+  setBowlEnabled(enabled: boolean): void {
+    this._bowlEnabled = enabled;
+    this.bowl.setEnabled(enabled);
   }
 
   /**
-   * Get recent melody events for visualization
+   * Get recent transaction sound events for visualization
    */
-  getRecentMelodies(): MelodyEvent[] {
-    return this.melody.getRecentMelodies();
+  getRecentSounds(): TransactionSoundEvent[] {
+    return this.transactionSounds.getRecentSounds();
   }
 
   /**
@@ -243,8 +253,8 @@ export class AudioEngine {
       isMuted: this._isMuted,
       volume: this._volume,
       droneEnabled: this._droneEnabled,
-      melodyEnabled: this._melodyEnabled,
-      gongEnabled: this._gongEnabled,
+      transactionSoundsEnabled: this._transactionSoundsEnabled,
+      bowlEnabled: this._bowlEnabled,
     };
   }
 
@@ -269,8 +279,8 @@ export class AudioEngine {
    */
   dispose(): void {
     this.drone.dispose();
-    this.melody.dispose();
-    this.gong.dispose();
+    this.transactionSounds.dispose();
+    this.bowl.dispose();
     this._isInitialized = false;
   }
 }

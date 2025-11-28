@@ -2,7 +2,7 @@ import { useEffect, useCallback, useState, useRef } from 'react';
 import { useMempoolSocket } from './hooks/useMempoolSocket';
 import { useAudioEngine } from './hooks/useAudioEngine';
 import { ParticleVisualizer } from './components/ParticleVisualizer';
-import type { MelodyEvent } from './audio/MelodyEngine';
+import type { TransactionSoundEvent } from './audio/TransactionSoundEngine';
 
 function App() {
   const { 
@@ -11,37 +11,39 @@ function App() {
     lastBlock,
     isBlockEvent,
     clearBlockEvent,
+    onTransaction,
   } = useMempoolSocket();
 
   const {
     state: audioState,
-    recentMelodies,
+    recentSounds,
     initialize: initializeAudio,
     start: startAudio,
     stop: stopAudio,
     toggleMute,
     toggleDrone,
-    toggleMelody,
-    toggleGong,
+    toggleTransactionSounds,
+    toggleBowl,
     setVolume,
     setStressLevel,
-    triggerMelody,
+    triggerTransactionSound,
     triggerBlockEvent,
-    testGong,
+    testBowl,
   } = useAudioEngine();
 
   const [isEntering, setIsEntering] = useState(false);
   const [hasEntered, setHasEntered] = useState(false);
-  const [lastMelodyEvent, setLastMelodyEvent] = useState<MelodyEvent | null>(null);
+  const [lastSoundEvent, setLastSoundEvent] = useState<TransactionSoundEvent | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sessionStart] = useState(() => Date.now());
   const [blocksWitnessed, setBlocksWitnessed] = useState(0);
   const [showControls, setShowControls] = useState(true);
-  const [localVolume, setLocalVolume] = useState(70); // Local state for smooth slider interaction
+  const [localVolume, setLocalVolume] = useState(70);
+  const [soundCount, setSoundCount] = useState(0);
   
-  const processedTxsRef = useRef<Set<string>>(new Set());
-  const melodyTimeoutRef = useRef<number | null>(null);
+  const soundTimeoutRef = useRef<number | null>(null);
   const controlsTimeoutRef = useRef<number | null>(null);
+  const soundCountRef = useRef(0);
 
   // Format session duration
   const formatDuration = (ms: number): string => {
@@ -95,44 +97,34 @@ function App() {
     }
   }, [isBlockEvent, audioState.isPlaying, triggerBlockEvent, clearBlockEvent]);
 
-  // Process a single transaction for melody
-  const processTransactionForMelody = useCallback((tx: { txid: string; value: number }) => {
-    if (!audioState.isPlaying || !audioState.melodyEnabled) return;
-    if (processedTxsRef.current.has(tx.txid)) return;
-    
-    processedTxsRef.current.add(tx.txid);
-    
-    const melodyEvent = triggerMelody(tx.txid, tx.value);
-    if (melodyEvent) {
-      if (melodyTimeoutRef.current) {
-        clearTimeout(melodyTimeoutRef.current);
-      }
-      setLastMelodyEvent(melodyEvent);
-      melodyTimeoutRef.current = window.setTimeout(() => {
-        setLastMelodyEvent(null);
-        melodyTimeoutRef.current = null;
-      }, 3000);
-    }
-
-    if (processedTxsRef.current.size > 1000) {
-      const txids = Array.from(processedTxsRef.current);
-      processedTxsRef.current = new Set(txids.slice(-500));
-    }
-  }, [audioState.isPlaying, audioState.melodyEnabled, triggerMelody]);
-
-  // Process new transactions as they come in
-  const latestTxRef = useRef<string | null>(null);
+  // Subscribe to ALL transactions and trigger sounds
   useEffect(() => {
-    if (recentTransactions.length === 0) return;
-    
-    const latestTx = recentTransactions[recentTransactions.length - 1];
-    if (latestTx && latestTx.txid !== latestTxRef.current) {
-      latestTxRef.current = latestTx.txid;
-      requestAnimationFrame(() => {
-        processTransactionForMelody(latestTx);
-      });
-    }
-  }, [recentTransactions, processTransactionForMelody]);
+    if (!audioState.isPlaying || !audioState.transactionSoundsEnabled) return;
+
+    const unsubscribe = onTransaction((tx) => {
+      const soundEvent = triggerTransactionSound(tx.txid, tx.value);
+      
+      if (soundEvent) {
+        // Update sound count
+        soundCountRef.current++;
+        setSoundCount(soundCountRef.current);
+        
+        // Show notification for larger transactions only (to avoid UI spam)
+        if (tx.value >= 100_000) { // 0.001 BTC+
+          if (soundTimeoutRef.current) {
+            clearTimeout(soundTimeoutRef.current);
+          }
+          setLastSoundEvent(soundEvent);
+          soundTimeoutRef.current = window.setTimeout(() => {
+            setLastSoundEvent(null);
+            soundTimeoutRef.current = null;
+          }, 1500);
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, [audioState.isPlaying, audioState.transactionSoundsEnabled, onTransaction, triggerTransactionSound]);
 
   // Enter ZenPool handler
   const handleEnter = useCallback(async () => {
@@ -230,11 +222,12 @@ function App() {
     return 'Congested';
   };
 
-  const getWhaleEmoji = (value: number): string => {
-    if (value >= 1_000_000_000) return '🐋🐋🐋';
-    if (value >= 100_000_000) return '🐋🐋';
-    if (value >= 10_000_000) return '🐋';
-    return '🐟';
+  const getSizeEmoji = (value: number): string => {
+    if (value >= 10_000_000_000) return '💎';
+    if (value >= 1_000_000_000) return '🐋';
+    if (value >= 100_000_000) return '🔔';
+    if (value >= 10_000_000) return '✨';
+    return '·';
   };
 
   // Entry screen
@@ -349,15 +342,15 @@ function App() {
             }}
           />
 
-          {/* Melody notification */}
-          {lastMelodyEvent && (
+          {/* Transaction sound notification */}
+          {lastSoundEvent && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="animate-fade-in bg-black/60 backdrop-blur-sm rounded-xl px-6 py-3 border border-cyan-400/20">
                 <div className="text-cyan-400 text-xl font-mono font-light tracking-wider">
-                  {getWhaleEmoji(lastMelodyEvent.value)} {lastMelodyEvent.notes.join(' → ')}
+                  {getSizeEmoji(lastSoundEvent.value)} {lastSoundEvent.frequency.toFixed(0)}Hz
                 </div>
                 <div className="text-white/40 text-xs text-center mt-1">
-                  {formatSats(lastMelodyEvent.value)}
+                  {formatSats(lastSoundEvent.value)}
                 </div>
               </div>
             </div>
@@ -367,7 +360,7 @@ function App() {
           {isBlockEvent && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-amber-400/5">
               <div className="text-center animate-pulse">
-                <div className="text-amber-400 text-4xl mb-2">⛏️</div>
+                <div className="text-amber-400 text-4xl mb-2">🔔</div>
                 <div className="text-amber-400/80 text-sm font-mono tracking-wider">
                   Block #{lastBlock?.height}
                 </div>
@@ -397,7 +390,7 @@ function App() {
             {networkState.medianFeeRate.toFixed(0)} sat/vB
           </div>
           <div className="text-xs text-white/30 font-mono">
-            {recentMelodies.length} whales
+            {soundCount} sounds
           </div>
           <div className="text-xs text-white/20 font-mono">
             {blocksWitnessed} blocks witnessed
@@ -448,31 +441,31 @@ function App() {
                            ? 'bg-emerald-400/15 text-emerald-400 border border-emerald-400/20' 
                            : 'bg-white/5 text-white/30 border border-white/5'}`}
             >
-              Drone
+              Waves
             </button>
             <button
-              onClick={toggleMelody}
+              onClick={toggleTransactionSounds}
               className={`px-3 py-1.5 rounded-full text-[10px] uppercase tracking-wider transition-all duration-300
-                         ${audioState.melodyEnabled 
+                         ${audioState.transactionSoundsEnabled 
                            ? 'bg-cyan-400/15 text-cyan-400 border border-cyan-400/20' 
                            : 'bg-white/5 text-white/30 border border-white/5'}`}
             >
-              Melody
+              Sounds
             </button>
             <button
-              onClick={toggleGong}
+              onClick={toggleBowl}
               className={`px-3 py-1.5 rounded-full text-[10px] uppercase tracking-wider transition-all duration-300
-                         ${audioState.gongEnabled 
+                         ${audioState.bowlEnabled 
                            ? 'bg-amber-400/15 text-amber-400 border border-amber-400/20' 
                            : 'bg-white/5 text-white/30 border border-white/5'}`}
             >
-              Gong
+              Bowl
             </button>
             <button
-              onClick={testGong}
+              onClick={testBowl}
               className="px-2 py-1.5 rounded-full text-[10px] transition-all duration-300
                          bg-white/5 text-white/20 border border-white/5 hover:text-amber-400 hover:border-amber-400/20"
-              title="Test gong"
+              title="Test singing bowl"
             >
               🔔
             </button>
