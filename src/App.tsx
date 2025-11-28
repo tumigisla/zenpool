@@ -85,12 +85,6 @@ function App() {
     setIsEntering(false);
   }, [initializeAudio, startAudio, setVolume]);
 
-  const getStressBgColor = (level: number): string => {
-    if (level < 0.3) return 'bg-emerald-400';
-    if (level < 0.6) return 'bg-amber-400';
-    return 'bg-red-400';
-  };
-
   // Entry screen
   if (!hasEntered) {
     return (
@@ -217,11 +211,8 @@ function App() {
           )}
 
           {/* Corner stats */}
-          <div className="absolute top-3 left-3 flex items-center gap-3 text-[10px] text-white/30 font-mono">
-            <div className="flex items-center gap-1.5">
-              <div className={`w-1.5 h-1.5 rounded-full ${getStressBgColor(networkState.stressLevel)}`} />
-              <span>{networkState.mempoolSize.toFixed(1)} MB</span>
-            </div>
+          <div className="absolute top-3 left-3 flex items-center gap-2 text-[10px] text-white/30 font-mono">
+            <span>{networkState.mempoolSize.toFixed(1)} MB</span>
             <span className="text-white/15">•</span>
             <span>{networkState.medianFeeRate.toFixed(0)} sat/vB</span>
           </div>
@@ -229,6 +220,22 @@ function App() {
           <div className="absolute top-3 right-3 text-[10px] text-white/30 font-mono">
             #{networkState.currentBlockHeight.toLocaleString()}
           </div>
+        </div>
+      </div>
+
+      {/* Bottom: Connection Status */}
+      <div className="absolute bottom-4 left-0 right-0 flex justify-center z-10">
+        <div className="flex items-center gap-2">
+          <div 
+            className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${
+              networkState.isConnected 
+                ? 'bg-emerald-400 shadow-lg shadow-emerald-400/50' 
+                : 'bg-red-400 animate-pulse'
+            }`} 
+          />
+          <span className="text-[10px] text-white/30 font-light tracking-wider uppercase">
+            {networkState.isConnected ? 'Live' : 'Reconnecting'}
+          </span>
         </div>
       </div>
     </div>
