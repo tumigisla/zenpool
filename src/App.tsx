@@ -20,25 +20,18 @@ function App() {
     start: startAudio,
     stop: stopAudio,
     toggleMute,
-    toggleDrone,
-    toggleTransactionSounds,
-    toggleBowl,
     setVolume,
     setStressLevel,
     triggerTransactionSound,
     triggerBlockEvent,
-    testBowl,
   } = useAudioEngine();
 
   const [isEntering, setIsEntering] = useState(false);
   const [hasEntered, setHasEntered] = useState(false);
   const [lastSoundEvent, setLastSoundEvent] = useState<TransactionSoundEvent | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showControls, setShowControls] = useState(true);
   const [localVolume, setLocalVolume] = useState(70);
   
   const soundTimeoutRef = useRef<number | null>(null);
-  const controlsTimeoutRef = useRef<number | null>(null);
 
   // Update audio engine with network stress level
   useEffect(() => {
@@ -102,53 +95,6 @@ function App() {
       startAudio();
     }
   }, [audioState.isPlaying, startAudio, stopAudio]);
-
-  // Toggle fullscreen
-  const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
-  }, []);
-
-  // Compute showControls based on fullscreen state
-  const showControlsRef = useRef(true);
-  
-  // Auto-hide controls in fullscreen
-  useEffect(() => {
-    if (!isFullscreen) {
-      showControlsRef.current = true;
-      // Use RAF to update state
-      requestAnimationFrame(() => setShowControls(true));
-      return;
-    }
-
-    const handleMouseMove = () => {
-      showControlsRef.current = true;
-      requestAnimationFrame(() => setShowControls(true));
-      
-      if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current);
-      }
-      controlsTimeoutRef.current = window.setTimeout(() => {
-        showControlsRef.current = false;
-        setShowControls(false);
-      }, 3000);
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    handleMouseMove();
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current);
-      }
-    };
-  }, [isFullscreen]);
 
   const getStressBgColor = (level: number): string => {
     if (level < 0.3) return 'bg-emerald-400';
@@ -226,7 +172,7 @@ function App() {
 
   // Main experience screen
   return (
-    <div className={`w-full h-full flex flex-col relative ${isFullscreen ? 'cursor-none' : ''}`}>
+    <div className="w-full h-full flex flex-col relative">
       {/* Vignette overlay */}
       <div className="vignette" />
       
@@ -240,7 +186,7 @@ function App() {
       <div className="flex-1 flex flex-col items-center justify-center z-10 p-4">
         
         {/* Minimal Header */}
-        <div className={`text-center mb-6 transition-opacity duration-500 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+        <div className="text-center mb-6">
           <h1 className="font-display text-2xl font-extralight tracking-[0.4em] text-white/60">
             ZENPOOL
           </h1>
@@ -299,8 +245,7 @@ function App() {
       </div>
 
       {/* Controls Bar - Bottom */}
-      <div className={`controls-bar absolute bottom-0 left-0 right-0 p-4 z-[60] transition-all duration-500 
-                       ${showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
+      <div className="controls-bar absolute bottom-0 left-0 right-0 p-4 z-[60]">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           
           {/* Left: Playback */}
@@ -329,105 +274,46 @@ function App() {
             }`} />
           </div>
 
-          {/* Center: Audio Toggles */}
+          {/* Right: Volume */}
           <div className="flex items-center gap-2">
             <button
-              onClick={toggleDrone}
-              className={`px-3 py-1.5 rounded-full text-[10px] uppercase tracking-wider transition-all duration-300
-                         ${audioState.droneEnabled 
-                           ? 'bg-emerald-400/15 text-emerald-400 border border-emerald-400/20' 
-                           : 'bg-white/5 text-white/30 border border-white/5'}`}
+              onClick={toggleMute}
+              className="text-white/40 hover:text-white/60 transition-colors"
             >
-              Waves
-            </button>
-            <button
-              onClick={toggleTransactionSounds}
-              className={`px-3 py-1.5 rounded-full text-[10px] uppercase tracking-wider transition-all duration-300
-                         ${audioState.transactionSoundsEnabled 
-                           ? 'bg-cyan-400/15 text-cyan-400 border border-cyan-400/20' 
-                           : 'bg-white/5 text-white/30 border border-white/5'}`}
-            >
-              Sounds
-            </button>
-            <button
-              onClick={toggleBowl}
-              className={`px-3 py-1.5 rounded-full text-[10px] uppercase tracking-wider transition-all duration-300
-                         ${audioState.bowlEnabled 
-                           ? 'bg-amber-400/15 text-amber-400 border border-amber-400/20' 
-                           : 'bg-white/5 text-white/30 border border-white/5'}`}
-            >
-              Bowl
-            </button>
-            <button
-              onClick={testBowl}
-              className="px-2 py-1.5 rounded-full text-[10px] transition-all duration-300
-                         bg-white/5 text-white/20 border border-white/5 hover:text-amber-400 hover:border-amber-400/20"
-              title="Test singing bowl"
-            >
-              🔔
-            </button>
-          </div>
-
-          {/* Right: Volume & Fullscreen */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={toggleMute}
-                className="text-white/40 hover:text-white/60 transition-colors"
-              >
-                {audioState.isMuted ? (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
-                          d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
-                          d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
-                          d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                  </svg>
-                )}
-              </button>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={localVolume}
-                onInput={(e) => {
-                  const newVol = Number((e.target as HTMLInputElement).value);
-                  setLocalVolume(newVol);
-                  setVolume(newVol);
-                }}
-                onChange={(e) => {
-                  const newVol = Number(e.target.value);
-                  setLocalVolume(newVol);
-                  setVolume(newVol);
-                }}
-                className="w-32 h-3 cursor-pointer"
-              />
-              <span className="text-[10px] text-white/30 w-6 font-mono">
-                {localVolume}
-              </span>
-            </div>
-
-            <button
-              onClick={toggleFullscreen}
-              className="text-white/30 hover:text-white/60 transition-colors"
-              title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-            >
-              {isFullscreen ? (
+              {audioState.isMuted ? (
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                        d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
+                        d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
+                        d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
                 </svg>
               ) : (
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                        d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
+                        d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                 </svg>
               )}
             </button>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={localVolume}
+              onInput={(e) => {
+                const newVol = Number((e.target as HTMLInputElement).value);
+                setLocalVolume(newVol);
+                setVolume(newVol);
+              }}
+              onChange={(e) => {
+                const newVol = Number(e.target.value);
+                setLocalVolume(newVol);
+                setVolume(newVol);
+              }}
+              className="w-32 h-3 cursor-pointer"
+            />
+            <span className="text-[10px] text-white/30 w-6 font-mono">
+              {localVolume}
+            </span>
           </div>
         </div>
       </div>
