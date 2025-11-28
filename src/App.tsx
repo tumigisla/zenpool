@@ -16,7 +16,6 @@ function App() {
 
   const {
     state: audioState,
-    recentSounds,
     initialize: initializeAudio,
     start: startAudio,
     stop: stopAudio,
