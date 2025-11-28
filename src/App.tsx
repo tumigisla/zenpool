@@ -37,6 +37,7 @@ function App() {
   const [sessionStart] = useState(() => Date.now());
   const [blocksWitnessed, setBlocksWitnessed] = useState(0);
   const [showControls, setShowControls] = useState(true);
+  const [localVolume, setLocalVolume] = useState(70); // Local state for smooth slider interaction
   
   const processedTxsRef = useRef<Set<string>>(new Set());
   const melodyTimeoutRef = useRef<number | null>(null);
@@ -69,6 +70,13 @@ function App() {
       setStressLevel(networkState.stressLevel);
     }
   }, [networkState.stressLevel, audioState.isPlaying, setStressLevel]);
+
+  // Sync local volume with audio state on init
+  useEffect(() => {
+    if (audioState.isInitialized) {
+      setLocalVolume(audioState.volume);
+    }
+  }, [audioState.isInitialized, audioState.volume]);
 
   // Track block count ref to avoid setState in effect
   const blockCountRef = useRef(0);
@@ -412,8 +420,8 @@ function App() {
       </div>
 
       {/* Controls Bar - Bottom */}
-      <div className={`controls-bar absolute bottom-0 left-0 right-0 p-4 transition-all duration-500 
-                       ${showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+      <div className={`controls-bar absolute bottom-0 left-0 right-0 p-4 z-[60] transition-all duration-500 
+                       ${showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           
           {/* Left: Playback */}
@@ -506,12 +514,21 @@ function App() {
                 type="range"
                 min="0"
                 max="100"
-                value={audioState.volume}
-                onChange={(e) => setVolume(Number(e.target.value))}
-                className="w-24 h-2 cursor-pointer"
+                value={localVolume}
+                onInput={(e) => {
+                  const newVol = Number((e.target as HTMLInputElement).value);
+                  setLocalVolume(newVol);
+                  setVolume(newVol);
+                }}
+                onChange={(e) => {
+                  const newVol = Number(e.target.value);
+                  setLocalVolume(newVol);
+                  setVolume(newVol);
+                }}
+                className="w-32 h-3 cursor-pointer"
               />
               <span className="text-[10px] text-white/30 w-6 font-mono">
-                {audioState.volume}
+                {localVolume}
               </span>
             </div>
 

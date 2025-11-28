@@ -126,7 +126,7 @@ export class GongEngine {
 
   setVolume(db: number): void {
     if (this.volume) {
-      this.volume.volume.rampTo(db, 0.1);
+      this.volume.volume.value = db;
     }
   }
 

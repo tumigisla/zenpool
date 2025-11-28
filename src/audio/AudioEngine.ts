@@ -149,12 +149,17 @@ export class AudioEngine {
   }
 
   private applyVolume(): void {
-    // Convert 0-100 to decibels (-60 to 0)
-    // Use exponential curve for more natural volume control
+    // Convert 0-100 to a dB offset
+    // At 100% = 0dB offset (original levels)
+    // At 0% = -60dB offset (essentially silent)
     const normalizedVolume = this._volume / 100;
-    const db = normalizedVolume === 0 ? -Infinity : -40 * (1 - normalizedVolume);
+    const dbOffset = normalizedVolume === 0 ? -60 : -60 * (1 - normalizedVolume);
     
-    Tone.getDestination().volume.rampTo(db, 0.1);
+    // Apply volume offset to each engine's base volume
+    // Drone base: -24dB, Melody base: -12dB, Gong base: -6dB
+    this.drone.setVolume(-24 + dbOffset);
+    this.melody.setVolume(-12 + dbOffset);
+    this.gong.setVolume(-6 + dbOffset);
   }
 
   /**
