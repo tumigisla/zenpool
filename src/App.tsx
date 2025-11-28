@@ -198,15 +198,13 @@ function App() {
             }}
           />
 
-          {/* Block event overlay */}
+          {/* Block event indicator */}
           {isBlockEvent && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-amber-400/5">
-              <div className="text-center animate-pulse">
-                <div className="text-amber-400 text-4xl mb-2">🔔</div>
-                <div className="text-amber-400/80 text-sm font-mono tracking-wider">
-                  Block #{lastBlock?.height}
-                </div>
-              </div>
+            <div className="absolute bottom-3 left-3 flex items-center gap-1.5 pointer-events-none animate-fade-in">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+              <span className="text-[10px] text-amber-400/70 font-mono tracking-wider">
+                Block #{lastBlock?.height}
+              </span>
             </div>
           )}
 
