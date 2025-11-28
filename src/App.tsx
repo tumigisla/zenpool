@@ -34,36 +34,11 @@ function App() {
   const [hasEntered, setHasEntered] = useState(false);
   const [lastSoundEvent, setLastSoundEvent] = useState<TransactionSoundEvent | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [sessionStart] = useState(() => Date.now());
-  const [blocksWitnessed, setBlocksWitnessed] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [localVolume, setLocalVolume] = useState(70);
-  const [soundCount, setSoundCount] = useState(0);
   
   const soundTimeoutRef = useRef<number | null>(null);
   const controlsTimeoutRef = useRef<number | null>(null);
-  const soundCountRef = useRef(0);
-
-  // Format session duration
-  const formatDuration = (ms: number): string => {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    if (hours > 0) return `${hours}h ${minutes % 60}m`;
-    if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
-    return `${seconds}s`;
-  };
-
-  const [sessionDuration, setSessionDuration] = useState('0s');
-
-  // Update session duration every second
-  useEffect(() => {
-    if (!hasEntered) return;
-    const interval = setInterval(() => {
-      setSessionDuration(formatDuration(Date.now() - sessionStart));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [hasEntered, sessionStart]);
 
   // Update audio engine with network stress level
   useEffect(() => {
@@ -72,18 +47,10 @@ function App() {
     }
   }, [networkState.stressLevel, audioState.isPlaying, setStressLevel]);
 
-  // Track block count ref to avoid setState in effect
-  const blockCountRef = useRef(0);
-  
   // Handle block events
   useEffect(() => {
     if (isBlockEvent && audioState.isPlaying) {
       triggerBlockEvent();
-      blockCountRef.current += 1;
-      // Update state in next frame to avoid sync setState
-      requestAnimationFrame(() => {
-        setBlocksWitnessed(blockCountRef.current);
-      });
       const timeout = setTimeout(clearBlockEvent, 5000);
       return () => clearTimeout(timeout);
     }
@@ -97,10 +64,6 @@ function App() {
       const soundEvent = triggerTransactionSound(tx.txid, tx.value);
       
       if (soundEvent) {
-        // Update sound count
-        soundCountRef.current++;
-        setSoundCount(soundCountRef.current);
-        
         // Show notification for larger transactions only (to avoid UI spam)
         if (tx.value >= 100_000) { // 0.001 BTC+
           if (soundTimeoutRef.current) {
@@ -187,39 +150,10 @@ function App() {
     };
   }, [isFullscreen]);
 
-  const formatSats = (sats: number): string => {
-    if (sats >= 100_000_000) return `${(sats / 100_000_000).toFixed(4)} BTC`;
-    if (sats >= 1_000_000) return `${(sats / 1_000_000).toFixed(2)}M sats`;
-    if (sats >= 1_000) return `${(sats / 1_000).toFixed(1)}K sats`;
-    return `${sats} sats`;
-  };
-
-  const getStressColor = (level: number): string => {
-    if (level < 0.3) return 'text-emerald-400';
-    if (level < 0.6) return 'text-amber-400';
-    return 'text-red-400';
-  };
-
   const getStressBgColor = (level: number): string => {
     if (level < 0.3) return 'bg-emerald-400';
     if (level < 0.6) return 'bg-amber-400';
     return 'bg-red-400';
-  };
-
-  const getStressLabel = (level: number): string => {
-    if (level < 0.2) return 'Calm';
-    if (level < 0.4) return 'Light';
-    if (level < 0.6) return 'Moderate';
-    if (level < 0.8) return 'Busy';
-    return 'Congested';
-  };
-
-  const getSizeEmoji = (value: number): string => {
-    if (value >= 10_000_000_000) return '💎';
-    if (value >= 1_000_000_000) return '🐋';
-    if (value >= 100_000_000) return '🔔';
-    if (value >= 10_000_000) return '✨';
-    return '·';
   };
 
   // Entry screen
@@ -263,7 +197,7 @@ function App() {
                        disabled:hover:shadow-none disabled:hover:border-white/20"
           >
             <span className="relative z-10">
-              {isEntering ? 'Initializing...' : 'Begin'}
+              {isEntering ? 'Starting...' : 'Begin'}
             </span>
             <div className="absolute inset-0 rounded-full bg-gradient-to-r from-amber-400/0 via-amber-400/5 to-amber-400/0 
                             opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
@@ -320,6 +254,7 @@ function App() {
             transactions={recentTransactions}
             stressLevel={networkState.stressLevel}
             isBlockEvent={isBlockEvent}
+            highlightedTxId={lastSoundEvent?.txid}
           />
 
           {/* Ambient glow based on stress */}
@@ -334,19 +269,6 @@ function App() {
             }}
           />
 
-          {/* Transaction sound notification */}
-          {lastSoundEvent && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="animate-fade-in bg-black/60 backdrop-blur-sm rounded-xl px-6 py-3 border border-cyan-400/20">
-                <div className="text-cyan-400 text-xl font-mono font-light tracking-wider">
-                  {getSizeEmoji(lastSoundEvent.value)} {lastSoundEvent.frequency.toFixed(0)}Hz
-                </div>
-                <div className="text-white/40 text-xs text-center mt-1">
-                  {formatSats(lastSoundEvent.value)}
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Block event overlay */}
           {isBlockEvent && (
@@ -361,34 +283,17 @@ function App() {
           )}
 
           {/* Corner stats */}
-          <div className="absolute top-3 left-3 text-[10px] text-white/30 font-mono">
-            <span className={getStressColor(networkState.stressLevel)}>{getStressLabel(networkState.stressLevel)}</span>
-            <span className="mx-2 text-white/10">•</span>
-            <span>{(networkState.flowRate / 1000).toFixed(1)} kB/s</span>
+          <div className="absolute top-3 left-3 flex items-center gap-3 text-[10px] text-white/30 font-mono">
+            <div className="flex items-center gap-1.5">
+              <div className={`w-1.5 h-1.5 rounded-full ${getStressBgColor(networkState.stressLevel)}`} />
+              <span>{networkState.mempoolSize.toFixed(1)} MB</span>
+            </div>
+            <span className="text-white/15">•</span>
+            <span>{networkState.medianFeeRate.toFixed(0)} sat/vB</span>
           </div>
 
           <div className="absolute top-3 right-3 text-[10px] text-white/30 font-mono">
             #{networkState.currentBlockHeight.toLocaleString()}
-          </div>
-        </div>
-
-        {/* Stats Bar */}
-        <div className={`mt-6 flex items-center gap-8 transition-opacity duration-500 ${showControls ? 'opacity-100' : 'opacity-30'}`}>
-          <div className="flex items-center gap-2">
-            <div className={`w-1.5 h-1.5 rounded-full ${getStressBgColor(networkState.stressLevel)}`} />
-            <span className="text-xs text-white/40 font-mono">{networkState.mempoolSize.toFixed(1)} MB</span>
-          </div>
-          <div className="text-xs text-white/30 font-mono">
-            {networkState.medianFeeRate.toFixed(0)} sat/vB
-          </div>
-          <div className="text-xs text-white/30 font-mono">
-            {soundCount} sounds
-          </div>
-          <div className="text-xs text-white/20 font-mono">
-            {blocksWitnessed} blocks witnessed
-          </div>
-          <div className="text-xs text-white/20 font-mono">
-            {sessionDuration}
           </div>
         </div>
       </div>
