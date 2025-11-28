@@ -53,6 +53,7 @@ const getParticleSize = (value: number): number => {
 const MAX_PARTICLES = 300;
 const GRAVITY = 0.15;
 const CONTAINER_PADDING = 40;
+const MAX_FILL_RATIO = 0.85; // Maximum fill percentage before removing old particles
 
 export function ParticleVisualizer({ 
   transactions, 
@@ -276,6 +277,9 @@ export function ParticleVisualizer({
           p.vx *= 0.99;
           p.vy *= 0.99;
         }
+
+        // Prune overflowing particles
+        pruneOverflowingParticles(particles, container);
       }
 
       // Draw particles
@@ -350,7 +354,7 @@ export function ParticleVisualizer({
     };
 
     // Find the Y position where a particle should settle
-    const findSettleY = (p: Particle, particles: Particle[], container: { bottom: number; x: number; width: number }) => {
+    const findSettleY = (p: Particle, particles: Particle[], container: { bottom: number; x: number; width: number; y: number; height: number }) => {
       let settleY = container.bottom;
 
       for (const other of particles) {
@@ -367,7 +371,51 @@ export function ParticleVisualizer({
         }
       }
 
+      // Clamp to container top - prevent overflow
+      const minY = container.y + p.size * 2;
+      if (settleY < minY) {
+        settleY = minY;
+      }
+
       return settleY;
+    };
+
+    // Remove oldest settled particles when pool is too full
+    const pruneOverflowingParticles = (particles: Particle[], container: { y: number; bottom: number; height: number }) => {
+      const settledParticles = particles.filter(p => p.settled);
+      if (settledParticles.length === 0) return;
+
+      // Find the highest settled particle
+      let highestY = container.bottom;
+      for (const p of settledParticles) {
+        if (p.y - p.size < highestY) {
+          highestY = p.y - p.size;
+        }
+      }
+
+      // Calculate fill level
+      const fillHeight = container.bottom - highestY;
+      const maxFillHeight = container.height * MAX_FILL_RATIO;
+
+      // If overflowing, remove oldest settled particles
+      if (fillHeight > maxFillHeight) {
+        // Sort settled particles by y position (highest first = oldest at bottom)
+        const sortedSettled = [...settledParticles].sort((a, b) => b.y - a.y);
+        
+        // Remove the bottom-most (oldest) particles until we're under the limit
+        const toRemove = Math.ceil(sortedSettled.length * 0.15); // Remove 15% of settled
+        const idsToRemove = new Set(sortedSettled.slice(0, toRemove).map(p => p.id));
+        
+        // Fade out and remove
+        for (const p of particles) {
+          if (idsToRemove.has(p.id)) {
+            p.alpha -= 0.1;
+          }
+        }
+        
+        // Actually remove fully faded particles
+        particlesRef.current = particles.filter(p => p.alpha > 0);
+      }
     };
 
     animate();
