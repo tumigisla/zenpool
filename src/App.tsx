@@ -19,7 +19,6 @@ function App() {
     initialize: initializeAudio,
     start: startAudio,
     stop: stopAudio,
-    toggleMute,
     setVolume,
     setStressLevel,
     triggerTransactionSound,
@@ -29,7 +28,6 @@ function App() {
   const [isEntering, setIsEntering] = useState(false);
   const [hasEntered, setHasEntered] = useState(false);
   const [lastSoundEvent, setLastSoundEvent] = useState<TransactionSoundEvent | null>(null);
-  const [localVolume, setLocalVolume] = useState(70);
   
   const soundTimeoutRef = useRef<number | null>(null);
 
@@ -79,13 +77,14 @@ function App() {
     setIsEntering(true);
     try {
       await initializeAudio();
+      setVolume(100); // Set volume to 100%
       startAudio();
       setHasEntered(true);
     } catch (error) {
       console.error('Failed to start audio:', error);
     }
     setIsEntering(false);
-  }, [initializeAudio, startAudio]);
+  }, [initializeAudio, startAudio, setVolume]);
 
   // Toggle play/pause
   const handleTogglePlay = useCallback(() => {
@@ -246,9 +245,8 @@ function App() {
 
       {/* Controls Bar - Bottom */}
       <div className="controls-bar absolute bottom-0 left-0 right-0 p-4 z-[60]">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
-          
-          {/* Left: Playback */}
+        <div className="max-w-3xl mx-auto flex items-center justify-center">
+          {/* Playback */}
           <div className="flex items-center gap-3">
             <button
               onClick={handleTogglePlay}
@@ -272,48 +270,6 @@ function App() {
             <div className={`w-1.5 h-1.5 rounded-full transition-colors ${
               audioState.isPlaying ? 'bg-emerald-400 animate-pulse' : 'bg-white/20'
             }`} />
-          </div>
-
-          {/* Right: Volume */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={toggleMute}
-              className="text-white/40 hover:text-white/60 transition-colors"
-            >
-              {audioState.isMuted ? (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
-                        d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
-                        d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
-                        d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                </svg>
-              )}
-            </button>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={localVolume}
-              onInput={(e) => {
-                const newVol = Number((e.target as HTMLInputElement).value);
-                setLocalVolume(newVol);
-                setVolume(newVol);
-              }}
-              onChange={(e) => {
-                const newVol = Number(e.target.value);
-                setLocalVolume(newVol);
-                setVolume(newVol);
-              }}
-              className="w-32 h-3 cursor-pointer"
-            />
-            <span className="text-[10px] text-white/30 w-6 font-mono">
-              {localVolume}
-            </span>
           </div>
         </div>
       </div>
