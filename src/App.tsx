@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useState, useRef } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { useMempoolSocket } from './hooks/useMempoolSocket';
 import { useAudioEngine } from './hooks/useAudioEngine';
 import { ParticleVisualizer } from './components/ParticleVisualizer';
@@ -88,6 +89,8 @@ function App() {
   // Entry screen
   if (!hasEntered) {
     return (
+      <>
+      <Analytics />
       <div className="w-full h-full flex flex-col items-center justify-center relative px-6">
         <div className="vignette" />
         
@@ -150,11 +153,14 @@ function App() {
           </svg>
         </a>
       </div>
+      </>
     );
   }
 
   // Main experience screen
   return (
+    <>
+    <Analytics />
     <div className="w-full h-full flex flex-col relative">
       {/* Vignette overlay */}
       <div className="vignette" />
@@ -239,6 +245,7 @@ function App() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 
