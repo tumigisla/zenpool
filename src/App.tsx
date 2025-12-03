@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { useMempoolSocket } from './hooks/useMempoolSocket';
 import { useAudioEngine } from './hooks/useAudioEngine';
 import { ParticleVisualizer } from './components/ParticleVisualizer';
@@ -91,6 +92,7 @@ function App() {
     return (
       <>
       <Analytics />
+      <SpeedInsights />
       <div className="w-full h-full flex flex-col items-center justify-center relative px-6">
         <div className="vignette" />
         
@@ -161,6 +163,7 @@ function App() {
   return (
     <>
     <Analytics />
+    <SpeedInsights />
     <div className="w-full h-full flex flex-col relative">
       {/* Vignette overlay */}
       <div className="vignette" />
