@@ -4,13 +4,13 @@
     <meta charset="UTF-8" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧘</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="ZenPool - Experience Bitcoin as ambient sound. Real-time mempool sonification." />
+    <meta name="description" content="ZenPool - Meditative Bitcoin mempool visualization. Experience real-time cryptocurrency transactions as ambient zen soundscapes. Listen to the blockchain." />
     <meta name="keywords" content="bitcoin, mempool, zen, meditation, ambient sound, cryptocurrency, blockchain, sonification, relaxation, mindfulness" />
     <meta name="robots" content="index, follow" />
     <meta name="author" content="ZenPool" />
     <meta name="theme-color" content="#0a0a0a" />
     <link rel="canonical" href="https://www.zenpool.space/" />
-    <title>ZenPool | Listen to Bitcoin</title>
+    <title>ZenPool | Bitcoin Mempool Sonification - Zen Ambient Sound</title>
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
@@ -34,9 +34,35 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Outfit:wght@200;300;400&display=swap" rel="stylesheet">
+    
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "ZenPool",
+      "url": "https://www.zenpool.space",
+      "description": "Experience Bitcoin as ambient sound. Real-time mempool sonification.",
+      "applicationCategory": "Multimedia",
+      "operatingSystem": "Web Browser",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "keywords": "bitcoin, mempool, zen, meditation, ambient sound, cryptocurrency, blockchain, sonification"
+    }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Fallback content for SEO crawlers -->
+      <noscript>
+        <h1>ZenPool - Listen to Bitcoin</h1>
+        <p>Experience Bitcoin mempool transactions as ambient zen sounds. Every transaction becomes a note, every block a singing bowl.</p>
+        <p>ZenPool transforms real-time Bitcoin blockchain data into a meditative soundscape, creating a unique audio visualization of cryptocurrency activity.</p>
+      </noscript>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
